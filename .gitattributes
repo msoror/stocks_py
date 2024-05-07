@@ -1,2 +1,53 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+import pandas as pd
+import yfinance as yf
+
+def fetch_nasdaq_data(start_date, end_date):
+  """
+  Fetches historical data for all NASDAQ stocks within a date range.
+
+  Args:
+      start_date: Start date in YYYY-MM-DD format.
+      end_date: End date in YYYY-MM-DD format.
+
+  Returns:
+      A pandas DataFrame containing the collected data or None if no data is found.
+  """
+
+  # Get all NASDAQ tickers
+  tickers = yf.download("^IXIC", start=start_date, end=end_date, auto_adjust=True)['Close'].dropna().index.tolist()
+
+  # Download data for each ticker and collect relevant information
+  data = []
+  for ticker in tickers:
+    try:
+      stock_data = yf.download(ticker, start=start_date, end=end_date, auto_adjust=True)
+      if not stock_data.empty:
+        data.append({
+          'Date': stock_data.index[0].strftime('%Y-%m-%d'), # Extract date only
+          'Ticker': ticker,
+          'Sector': stock_data['info']['sector'] if 'sector' in stock_data['info'] else None,
+          'Open Price': stock_data['Open'].iloc[0],
+          'Close Price': stock_data['Close'].iloc[-1],
+          'Volume': stock_data['Volume'].sum()
+        })
+    except Exception as e:
+      print(f"Error fetching data for {ticker}: {e}")
+
+  # Return DataFrame if data is collected, otherwise None
+  return pd.DataFrame(data) if data else None
+
+if __name__ == "__main__":
+  # Define date range
+  start_date = '2024-04-01'
+  end_date = '2024-05-06'
+
+  # Fetch and format data
+  nasdaq_data = fetch_nasdaq_data(start_date, end_date)
+
+  # Check if data is available
+  if nasdaq_data is None:
+    print("No data found for the specified date range.")
+  else:
+    # Save data to CSV
+    nasdaq_data.to_csv('nasdaq_stocks_april_to_may_2024.csv', index=False)
+    print("CSV file generated successfully!")
